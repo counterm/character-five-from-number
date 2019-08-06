@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+</head>
+<body>
+	<script>
+
+
+	const perCode = 26;
+	const mixCode = 0x2AAAA;
+	const plainMul = 7;
+	const plainAdd = 126417;
+	const characterStart = 97;
+
+	[3,4,5,6,7,8,9,100,101,999,1000,1233,44455,56838,56839].forEach(v=>{
+		let encode = encodeReferralCode(v);
+		let decode = decodeReferralCode(encode);
+		console.log('plain text=', v, '\tencode=', encode, '\tdecode=', decode);
+	});
+
+    // 生成推荐码
+    // 4位26进制，去掉高位,剩下18位，bit max 262143 ~ 3 FFFF
+    // 
+    function encodeReferralCode(plain){
+    	let rand, firstRnd = Math.floor(Math.random() * perCode+1)
+        plain = plain * plainMul + plainAdd;
+        let codeNum = plain ^ mixCode & 0x3FFFF;
+        let result = '', 
+        	offsetPerCode = 0,//rand,
+        	charCode = firstRnd;
+        while(codeNum > 0){
+            // 1
+            rand = charCode;
+            // 2
+            offsetPerCode = charCode = codeNum % perCode;
+            // 3
+            charCode = (charCode + rand) % perCode;
+            // console.log(`offsetpercode = ${offsetPerCode}, charCode = ${charCode}, rand = ${rand};`);
+            result += String.fromCharCode(characterStart + charCode);
+            codeNum = (codeNum - offsetPerCode) / perCode;
+        }
+        // verify code
+        // 4
+        let mixRnd = (firstRnd + characterStart) % perCode;
+        // console.log(`rand=${rand}, mixRnd=${mixRnd}`)
+        result += String.fromCharCode(characterStart + mixRnd);
+        return result;
+    }
+
+
+
+    // 解码推荐码
+    function decodeReferralCode(code){
+    	// 4
+       	// verify code
+    	let mixRnd = code.charCodeAt(code.length-1) - characterStart;
+    	let rand, firstRnd = recoverMod(mixRnd, perCode, characterStart) - characterStart;
+        // console.log(`firstRnd=${firstRnd}, mixRnd=${mixRnd}`)
+    	code = code.substring(0, code.length-1);
+        let sum = 0, 
+        	result = 0, 
+        	offsetPerCode = 0,
+        	charCode = firstRnd,
+        	len = code.length;
+        Array.prototype.forEach.call(code, (v,i)=>{
+        	rand = charCode;
+        	charCode = v.charCodeAt(0) - characterStart;
+        	if (charCode >= rand){
+        		offsetPerCode = charCode - rand;
+        	}else{
+        		offsetPerCode = charCode - rand + perCode;
+        	}
+            // console.log(`offsetpercode = ${offsetPerCode}, charCode = ${charCode}, rand = ${rand};`);
+        	sum += i == 0 ? offsetPerCode : offsetPerCode * Math.pow(perCode, i);
+        	// lastRnd = charCode;
+        })
+        result = sum ^ mixCode & 0x3FFFF;
+        result = (result - plainAdd) / plainMul;
+        return result;
+    }
+
+    function recoverMod(num, base, up){
+    	while(num < up){
+    		num += base;
+    	}
+    	return num;
+    }
+
+	</script>
+</body>
+</html>
